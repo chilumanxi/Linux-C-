@@ -1,0 +1,27 @@
+stat/fstat/lstat
+
+int stat(const char *file_name, struct stat *buf);
+stat是将file_name所指定的文件名的状态信息，保存在参数struct stat *buf中
+
+int fstat(int fildes, struct stat *buf);
+fstat是通过文件描述符找到文件的
+
+int lstat(const char *file_name, struct stat *buf);
+lstat与stat区别在于对于符号链接文件，lstat返回的是符号链接文件本身的状态信息，而stat返回的是符号链接指向的文件的状态信息。
+
+struct stat *buf是一个保存文件状态信息的结构体，类型如下：
+struct stat {
+	dev_t        st_dev      //文件的设备编号
+	ino_t        st_ino      //文件的i-node（i节点编号）
+	mode_t       st_mode     //文件的类型和存取权限，其含义与chmod,open函数的mode参数相同
+	nlink_t      st_nlink    //连到该文件的硬链接数目，刚建立的文件值为1
+	uid_t        st_uid      //文件所有者的用户id
+	gid_t        st_gid      //文件所有者的组id
+	dev_t        st_rdev     //若此文件为设备文件，则为其设备编号
+	off_t        st_size     //文件大小，按字节计算，对符号链接，该大小是其所指向的文件名的长度。
+	blksize_t    st_blksize  //文件系统的I/O缓存区大小
+	blkcnt_t     st_blocks   //占用文件区块的个数，每一区块大小通常为512字节
+	time_t       st_atime    //文件最近一次被访问的时间
+	time_t       st_mtime    //文件最后一次被修改的时间，一般调用write和utime时会改变。
+	time_t       st_ctime    //文件最后一次被更改的时间，此参数只有在文件所有者，所属组，文件权限被改变的时候才更新。
+};

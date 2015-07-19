@@ -1,0 +1,14 @@
+参数mode的值：
+字符常量值　　　　　　　　　　　　字符常量值对应的八进制值　　　　　　　含义
+S_IRUSR(S_IREAD)                  00400                                 文件所有者具有可读取的权限
+S_IWUSR(S_IWRITE)                 00200                                 文件所有者具有可写入的权限
+S_IXUSR(S_IEXEC)                  00100                                 文件所有者具有可执行的权限
+S_IRGRP                           00040                                 用户组具有可读取权限
+S_IWGRP							　00020                                 用户组具有可写入权限
+S_IEGRP　　　　　　　　　　　　　 00010                                 用户组具有可执行权限
+S_IROTH                           00004                                 其他用户具有可读取权限
+S_IWOTH						　　　00002                                 其他用户具有可写入权限
+S_IEOTH　　　　　　　　　　　　　 00001                                 其他用户具有科执行权限
+S_ISUID                           04000									文件的位(set user-id on execution)
+S_ISGID                           02000									文件的位(set group-id on execution)
+S_ISVTX                           01000                                 文件的sticky位

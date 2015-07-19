@@ -1,0 +1,24 @@
+open函数
+int open(const char* pathname, int flags)
+int open(const char* pathname, int flags, mode_t mode)
+第一个参数pathname是要打开或创建的含路径的文件名，第二个参数flags表示打开文件的方式。
+
+文件打开方式：
+
+O_RDONLY:以只读方式打开文件
+O_WRONLY:以只写方式打开文件
+O_RDWR:以可读可写方式打开文件
+
+这三种打开方式是互斥的，但是他们可以分别与一下标志进行或运算
+O_CREAT:若文件不存在则自动建立该文件，只有在此时，才需要用到第三个参数mode，以说明新文件的存取权限
+O_EXCL :如果O_CREATE也被设置，此指令会去检查文件是否存在。文件若不存在则创建该文件，若文件已存在则将导致打开文件出错
+O_TRUNC:若文件存在并以可写的方式打开时，此标志会讲文件长度清为０，即源文件中保存的数据将丢失，但文件属性不变。
+O_APPEND:所写入的数据会以追加的方式加入到文件后面。
+O_SYNC　:以同步的方式打开文件，任何对文件的修改都会阻塞直到物理磁盘上的数据同步以后才返回。
+O_NOFOLLOW:如果参数pathname所指的文件为一符号连接，则会令打开文件失败，Linux内核版本在2.1.126以上才有此标志
+O_DIRECTORY:如果参数pathname所指的文件并非为一目录，则会令打开文件失败，Linux内核版本在2.1.126以上才有此标志
+O_NONBLOCK或O_NDELAY:以非阻塞的方式打开文件，对于open及随后的对该文件的操作，都会立刻返回。
+
+
+新文件的的实际存取权限是mode与umask按照（mode & ～umask）运算以后的结果。如mode为740，umask为045，则最后的结果为700
+
