@@ -15,33 +15,19 @@
 
 #include "server.h"
 
-char *get_time(){                                               //获取当前时间(字符串形式)
-    time_t timep;
-    time(&timep);
-    return ctime(&timep);
-}
-
-void load_info(){                                               //读取用户信息文件进入链表
+void load_info(){
     FILE *fp;
     struct info *node;
 
-    if((fp = fopen("client_information", "rb+")) == NULL){     
+    if((fp = fopen("client_information", "rb+")) == NULL){
         if((fp = fopen("client_information", "wb+")) == NULL){
             perror("fopen");
-            char str[100] = "create client_information error!\n";
-            deal_errlog(str);
             return ;
         }
     }
 
     while(1){
-        node = malloc(sizeof(struct info));                 //头插法插入创建链表
-        if(node == NULL){
-            perror("malloc");
-            char stri[100] = "malloc error!\n";
-            deal_errlog(stri);
-            exit(1);
-        }
+        node = malloc(sizeof(struct info));
         node -> next = NULL;
         if(fread(node, sizeof(struct info), 1, fp) == 1){
             node -> next = file_info;
@@ -51,8 +37,6 @@ void load_info(){                                               //读取用户�
             break;
         else{
             perror("read file error");
-            char stri[100] = "read client_information error!\n";
-            deal_errlog(stri);
             exit(1);
         }
     }
@@ -60,55 +44,33 @@ void load_info(){                                               //读取用户�
     fclose(fp);
 }
 
-void deal_dailylog(char *buf){                              //日常日志函数
+void deal_log(struct log alllog, char *buf, char *logname){
     FILE *fp;
-    char *time_str;
-    time_str = get_time();
-    if(dailylog.len + strlen(buf) + strlen(time_str) < BUFLEN){
-        strcat(dailylog.logbuf, time_str);
-        strcat(dailylog.logbuf, buf);
+    if(strlen(buf) + alllog.len < BUFLEN){
+        strcat(alllog.logbuf, buf);
     }
     else{
-        fp = fopen("daily_log", "ab");
-        fwrite(dailylog.logbuf, BUFLEN, 1, fp);
-        memset(dailylog.logbuf, 0, BUFLEN);
-        dailylog.len = 0;
-        fclose(fp);   
+        fp = fopen(logname, "ab");
+        fwrite(alllog.logbuf, BUFLEN, 1, fp);
+        memset(alllog.logbuf, 0, BUFLEN);
+        alllog.len = 0;
+        fclose(fp);
     }
 }
 
-void deal_errlog(char *buf){                                //错误日志函数
-    FILE *fp;
-    char *time_str;
-    time_str = get_time();
-    strcat(time_str, buf);
-    strcpy(errlog.logbuf, time_str);
-    fp = fopen("error_log","ab");                           //因为错误涉及到退出的关系，所以直接写入文件
-    fwrite(errlog.logbuf, strlen(errlog.logbuf), 1, fp);
-    fclose(fp);
-}
-
-
-void load_group(){                                          //读取群文件进入链表
+void load_group(){
     FILE *fp;
     struct group *node;
 
     if((fp = fopen("group_information", "rb+")) == NULL){
         if((fp = fopen("group_information", "wb+")) == NULL){
             perror("fopen");
-            char stri[100] = "create group_information!\n";
-            deal_errlog(stri);
             return;
         }
     }
+
     while(1){
         node = malloc(sizeof(struct group));
-        if(node == NULL){
-            perror("malloc");
-            char stri[100] ="malloc error!\n";
-            deal_errlog(stri);
-            exit(1);
-        }
         node -> next = NULL;
         if(fread(node, sizeof(struct group), 1, fp) == 1){
             node -> next = file_group;
@@ -118,8 +80,6 @@ void load_group(){                                          //读取群文件进
             break;
         else{
             perror("read file error");
-            char stri[100] = "read group_information error!\n";
-            deal_errlog(stri);
             exit(1);
         }
     }
@@ -128,13 +88,11 @@ void load_group(){                                          //读取群文件进
 }
 
 
-void save_info(struct info* const pnode){                 //如果只添加一个用户信息，通过此函数写入文件
+void save_info(struct info* const pnode){
     FILE *fp;
 
-    pthread_mutex_lock(&file_mutex);                      //写文件要涉及同步的锁机制
+    pthread_mutex_lock(&file_mutex);
     if((fp = fopen("client_information", "ab")) == NULL){
-        char stri[100] = "add client_information error!\n";
-        deal_errlog(stri);
         perror("fopen");
         exit(1);
     }
@@ -143,12 +101,11 @@ void save_info(struct info* const pnode){                 //如果只添加一�
     pthread_mutex_unlock(&file_mutex);
 }
 
-void save_group(struct group* const pnode){               //添加群信息
+void save_group(struct group* const pnode){
     FILE *fp;
+
     pthread_mutex_lock(&file_mutex);
     if((fp = fopen("group_information", "ab")) == NULL){
-        char stri[100] = "add group_information error!\n";
-        deal_errlog(stri);
         perror("fopen");
         exit(1);
     }
@@ -157,31 +114,28 @@ void save_group(struct group* const pnode){               //添加群信息
     pthread_mutex_unlock(&file_mutex);
 }
 
-void update_info(struct info* const pnode){               //更新用户信息，即将链表写入文件
+void update_info(struct info* const pnode){
     FILE *fp;
     struct info * node = pnode;
     pthread_mutex_lock(&file_mutex);
     if((fp = fopen("client_information", "w")) == NULL){
-        char stri[100] = "write client_information error!\n";
-        deal_errlog(stri);
         perror("fopen");
         exit(1);
     }
     while(node){
         fwrite(node, sizeof(struct info), 1, fp);
+        printf("heihei\n");
         node = node -> next;
     }
     fclose(fp);
     pthread_mutex_unlock(&file_mutex);
 }
 
-void update_group(struct group* const pnode){             //更新群信息，将文件写入链表
+void update_group(struct group* const pnode){
     FILE *fp;
     struct group * node = pnode;
     pthread_mutex_lock(&file_mutex);
     if((fp = fopen("group_information", "w")) == NULL){
-        char stri[100] = "write group_information error!\n";
-        deal_errlog(stri);
         perror("fopen");
         exit(1);
     }
@@ -193,8 +147,7 @@ void update_group(struct group* const pnode){             //更新群信息，�
     fclose(fp);
     pthread_mutex_unlock(&file_mutex);
 }
-
-void add_in_list(struct info *p, const char *tempname, const char *temppwd, const char *tempage, const char *tempphonenum){  //将新用户信息写入链表
+void add_in_list(struct info *p, const char *tempname, const char *temppwd, const char *tempage, const char *tempphonenum){
     int i = 0;
     p = malloc(sizeof(struct info));
     p -> next = NULL;
@@ -211,7 +164,7 @@ void add_in_list(struct info *p, const char *tempname, const char *temppwd, cons
     save_info(p);
 }
 
-void add_group_list(struct group *p, const char *tempname, const char *member_name){             //将新群信息写入链表
+void add_group_list(struct group *p, const char *tempname, const char *member_name){
     int i = 1;
     p = malloc(sizeof(struct group));
     p -> next = NULL;
@@ -226,7 +179,7 @@ void add_group_list(struct group *p, const char *tempname, const char *member_na
     save_group(p);
 }
 
-void init_client(fd_addr client[]){      //初始化用户信息以及日志
+void init_client(fd_addr client[]){
     int i;
     FILE * fp;
     for(i = 0; i < MAXPEOPLE; i ++){
@@ -237,23 +190,13 @@ void init_client(fd_addr client[]){      //初始化用户信息以及日志
     fp = fopen("daily_log", "r");
     if(fp == NULL){
         fp = fopen("daily_log", "w");
-        if(fp == NULL){
-            perror("fopen");
-            char stri[100] = "create daily_log error!\n";
-            deal_errlog(stri);
-        }
         fclose(fp);
     }
     else 
         fclose(fp);
     fp = fopen("error_log", "r");
     if(fp == NULL){
-        fp = fopen("error_log", "w");
-        if(fp == NULL){
-            perror("fopen");
-            char stri[100] = "create error_log error!\n"; 
-            deal_errlog(stri);
-        }
+        fp = fopen("err_log", "w");
         fclose(fp);
     }
     else 
@@ -262,7 +205,7 @@ void init_client(fd_addr client[]){      //初始化用户信息以及日志
 
 
 
-void server(){                                 //服务器主线程
+void server(){
     int sock_fd;
     struct sockaddr_in serve_addr;
     int addr_len = 0;
@@ -273,46 +216,38 @@ void server(){                                 //服务器主线程
     pthread_t thread_id;
 
     init_client(client);
-    memset(&serve_addr, 0, sizeof(struct sockaddr_in));//初始化网络信息
+    memset(&serve_addr, 0, sizeof(struct sockaddr_in));
     serve_addr.sin_family = AF_INET;
     serve_addr.sin_port = htons(SERVPORT);
     serve_addr.sin_addr.s_addr = INADDR_ANY;
     addr_len = sizeof(struct sockaddr_in);
-    if((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){ //创建套接字
+    if((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("socket");
-        char stri[100] = "create socket error!\n";
-        deal_errlog(stri);
         exit(1);
     }
 
-    setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, len);                     //设置套接字属性退出时立刻解放端口
-    if(bind(sock_fd, (struct sockaddr*)&serve_addr, sizeof(serve_addr)) == -1){   //绑定端口
+    setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, len);
+    if(bind(sock_fd, (struct sockaddr*)&serve_addr, sizeof(serve_addr)) == -1){
         perror("bind");
-        deal_errlog("bind error!\n");
         exit(1);
     }
 
-    if(listen(sock_fd, BACKLOG) == -1){                                           //监听
+    if(listen(sock_fd, BACKLOG) == -1){
         perror("listen");
-        deal_errlog("listen error!\n");
         exit(1);
     }
 
     while(1){
-        if((client[c_num].fd = accept(sock_fd, (struct sockaddr*)&client[c_num].addr, &addr_len)) == -1){  //对结构体client进行分配，每产生一个连接进行一次分配
+        if((client[c_num].fd = accept(sock_fd, (struct sockaddr*)&client[c_num].addr, &addr_len)) == -1){
             perror("accept");
-            deal_errlog("accept error!\n");
             continue;
         }
 
         printf("received a connection from: %s\nfd: %d\nc_num:%d\n", inet_ntoa(client[c_num].addr.sin_addr), client[c_num].fd, c_num);
-        char stri[100] = "received a connection from :";
-        strcat(stri, inet_ntoa(client[c_num].addr.sin_addr));
-        deal_dailylog(stri);
 
 
-        pthread_create(&thread_id, NULL, &msg_processor, (void *)&client[c_num]);         //创建子线程处理连接上的客户端
-        for(i = 0; i < MAXPEOPLE; i ++){                                                  //更新结构体数组下标
+        pthread_create(&thread_id, NULL, &msg_processor, (void *)&client[c_num]);
+        for(i = 0; i < MAXPEOPLE; i ++){
             if(client[i].fd == -1 || client[i].fd == -2){
                 c_num = i;
                 break;
@@ -320,9 +255,9 @@ void server(){                                 //服务器主线程
         }
     }
 
-    close(sock_fd);                                                                       //关闭套接字
+    close(sock_fd);
 }
-void client_exit(fd_addr * client_p){                                                     //对退出客户端的处理
+void client_exit(fd_addr * client_p){
     int i;
     for(i = 0; i < MAXPEOPLE; i ++){
         if(client[i].fd == client_p -> fd){
@@ -334,7 +269,7 @@ void client_exit(fd_addr * client_p){                                           
 }
 
 
-void *send_file(void *arg){                                                               //私聊发文件函数
+void *send_file(void *arg){
     char buf[BUFLEN];
     int numbytes = 0;
     char tempbuf[BUFLEN];
@@ -350,8 +285,8 @@ void *send_file(void *arg){                                                     
     fd_addr *client_p;
     struct node *a = (struct node*)arg;
     client_p = a->client_pa;
-    recv(client_p -> fd, &times, sizeof(times), MSG_WAITALL);                             //接收要接收的次数
-    for(i = 9; a->str[i] != '@'; i ++){                                                   //解析字符串
+    recv(client_p -> fd, &times, sizeof(times), MSG_WAITALL);
+    for(i = 9; a->str[i] != '@'; i ++){
         file_name[i - 9] = a->str[i];
     }
     file_name[i - 9] = '\0';
@@ -362,22 +297,20 @@ void *send_file(void *arg){                                                     
     send_name[i - temp] = '\0';
     fp = fopen(file_name, "w");
     if(fp == NULL){
-        perror("fopen");
-        deal_errlog("open file %s wrong!\n");
         printf("open file %s wrong\n", file_name);
         return NULL;
     }
     memset(buffer, 0, sizeof(buffer));
     temp_time = times;
-    while(temp_time --){                                                                  //打开文件后进行按段进行读取发送
+    while(temp_time --){
         len = recv(client_p -> fd, buffer, BUFLEN, 0);
-        fwrite(buffer, sizeof(char), len, fp);                                      
+        fwrite(buffer, sizeof(char), len, fp);
         memset(buffer, 0, sizeof(buffer));
     }
     fclose(fp);
-    for(i= 0; client[i].fd != -1; i ++){                                                  
+    for(i= 0; client[i].fd != -1; i ++){
         if(!strcmp(client[i].user_name, send_name)){
-            fp = fopen(file_name, "r");
+            fp =fopen(file_name, "r");
             strcpy(a->str, "getfile@");
             strcat(a->str, file_name);
             send(client[i].fd, a->str, BUFLEN, 0);
@@ -388,9 +321,6 @@ void *send_file(void *arg){                                                     
             while((len = fread(buffer, sizeof(char), BUFLEN, fp)) > 0){
                 if(send(client[i].fd, buffer, len, 0) < 0){
                     printf("Send file:%s Failed\n", file_name);
-                    char stri[100] = "Send file Failed: ";
-                    strcat(stri, file_name);
-                    deal_errlog(stri);
                     break;
                 }
                 memset(buffer, 0, sizeof(buffer));
@@ -405,7 +335,7 @@ void *send_file(void *arg){                                                     
 }
 
 
-void *msg_processor(void *arg){                 //处理各种功能的线程函数
+void *msg_processor(void *arg){
     fd_set readfds;
     struct info* pnode;
     struct info* knode;
@@ -417,10 +347,9 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
     int i, j, k = 0, l;
     char groupbuf[BUFLEN] = {0};
     int groupbyte;
-    FILE *fp;
     fd_addr* client_p = (fd_addr*)arg;
     
-    if(!login(client_p))                        //登录
+    if(!login(client_p))
         return NULL;
     
     pnode  = file_info;
@@ -434,7 +363,7 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
     write(client_p -> fd, "      Input \"quit\" to quit the chat!              \n", BUFLEN);
     write(client_p -> fd, "\n", BUFLEN);
     while(1){
-        write(client_p -> fd, "             ① group                                \n", BUFLEN);
+        write(client_p -> fd, "             ① chat with all!                       \n", BUFLEN);
         write(client_p -> fd, "             ② chat with your friends!              \n", BUFLEN);
         write(client_p -> fd, "             ③ Your friends                         \n", BUFLEN);
         write(client_p -> fd, "             ④ Get a friends                        \n", BUFLEN);
@@ -451,20 +380,28 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
         //pthread_mutex_lock(&sock_mutex);
         if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) < 0){
             perror("recv in send_all_user");
-            deal_errlog("recv in send_all_user!\n");
             close(client_p -> fd);
             return NULL;
         }
 
         //pthread_mutex_unlock(&sock_mutex);
         buf[-- numbytes] = '\0';
+        printf("recv:%s\n", buf);
+
         if(strlen(buf) != 1){
             write(client_p -> fd, "select error\n", BUFLEN);
             sleep(1);
             continue;
         }
 
-        if(buf[0] == '1'){                                                                      //群功能
+        if(buf[0] == '1'){
+            /*printf("%s add to chatroom\n", inet_ntoa(client_p -> addr.sin_addr));
+            send_to_all("-----come in---------", client_p);
+
+            client_p -> room_flag = 1;
+            chat_with_all(client_p);
+            */
+
             write(client_p -> fd, "           Select the choice you want!\n", BUFLEN);
             write(client_p -> fd, "             ① add a group         \n", BUFLEN);
             write(client_p -> fd, "             ② come in one group to chat\n", BUFLEN);
@@ -472,7 +409,6 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
             write(client_p -> fd, "             ④ quit from one group    \n",BUFLEN);
 
             if((groupbyte = recv(client_p -> fd, groupbuf, BUFLEN, 0)) < 0){
-                deal_errlog("recv error!\n");
                 perror("recv");
                 continue;
             }
@@ -493,10 +429,10 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
             }
             sleep(1);
         }
-        else if(buf[0] == '2'){                                          //私聊功能
+        else if(buf[0] == '2'){
             chat_with_one(client_p, pnode);
         }
-        else if(buf[0] == '3'){                                          //查看好友信息及对好友进行删除操作
+        else if(buf[0] == '3'){
             write(client_p -> fd, "these are your friends\n", BUFLEN);
 
             for(i = 0; pnode -> friends[i][0] != '\0'; i ++){
@@ -507,17 +443,16 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
             while(1){    
                 write(client_p -> fd, "input your friends name to view the information:\n", BUFLEN);
                 write(client_p -> fd ,"input like \"delete_name(your friend's name) to delete your friends\n\"", BUFLEN);
-                write(client_p -> fd, "you can input \"exit\" to quit\n", BUFLEN);
+                write(client_p -> fd, "you can input exit to quit\n", BUFLEN);
                 memset(buf, 0, sizeof(buf));
                 if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) == -1){
                     perror("recv");
-                    deal_errlog("recv error!\n");
                     pthread_exit(NULL);
                 }
                 buf[--numbytes] = '\0';
                 if(!strcmp(buf, "exit"))
                     break;
-                if(!strncmp(buf, "delete_", 7)){                         //解析删除好友的字符串
+                if(!strncmp(buf, "delete_", 7)){
                     for(i = 7; buf[i] != '\0'; i ++)
                         delete_name[i - 7] = buf[i];
                     delete_name[i] = '\0';
@@ -536,7 +471,7 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
                             }
                         }
                     }
-                    if(k == 1 && pnode -> friends[i][0] == '\0'){        //如果删除好友时选择y，则删除
+                    if(k == 1 && pnode -> friends[i][0] == '\0'){
                         if(i == 1){
                             pnode -> friends[0][0] = '\0';
                         }
@@ -564,7 +499,7 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
                             }
                             knode = knode -> next;
                         }
-                        update_info(file_info);                          //删除完毕后及时更新信息
+                        update_info(file_info);
                     }
                     else if(k == 0){
                         write(client_p -> fd, "you don't have that friend!\n", BUFLEN);
@@ -572,16 +507,19 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
 
                     continue;
                 }
-                for(i = 0; pnode -> friends[i][0] != '\0'; i ++){        //找到对应好友的结点，打印信息
+                for(i = 0; pnode -> friends[i][0] != '\0'; i ++){
                     if(!strcmp(buf, pnode -> friends[i])){
                         knode = file_info;
                         while(knode){
                             if(!strcmp(knode -> name, buf)){
                                 printf("knode -> name:%s\n", knode -> name);
+                                printf("haha\n");
                                 break;
                             }
                             knode = knode -> next;
                         }
+                        printf("%s\n", buf);
+                        printf("%s\n", knode -> name);
                         strcpy(tempbuf, knode -> name);
                         strcat(tempbuf, "\n");
                         strcat(tempbuf, knode -> age);
@@ -598,26 +536,22 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
             }
         }
         else if(buf[0] == '4'){
-            add_friend(client_p);                                        //添加好友
+            add_friend(client_p);
         }
         else if(buf[0] == '5'){
-            get_invatation(client_p, pnode);                             //查看好友邀请
+            get_invatation(client_p, pnode);
         }
         else if(buf[0] == '6'){
-           change_information(client_p, pnode);                          //更改个人信息
+            change_information(client_p, pnode);
         }
-        else if(buf[0] == '7'){                                          //退出客户端
+        else if(buf[0] == '7'){
             write(client_p -> fd, "EXIT", BUFLEN);
-            char stri[100];
-            strcpy(stri, client_p -> user_name);
-            strcat(stri, " quit!\n");
-            deal_dailylog(stri);
-	        fp = fopen("daily_log", "ab");
+		    fp = fopen("daily_log", "ab");
             fwrite(dailylog.logbuf, BUFLEN, 1, fp);
             memset(dailylog.logbuf, 0, sizeof(dailylog.logbuf));
             dailylog.len = 0;
             fclose(fp);
-            fp = fopen("error_log", "ab");
+            fp = fopen("err_log", "ab");
             fwrite(errlog.logbuf, BUFLEN, 1, fp);
             memset(errlog.logbuf, 0, sizeof(errlog.logbuf));
             errlog.len = 0;
@@ -627,23 +561,15 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
             pthread_mutex_lock(&client_mutex);
             FD_ADDR_CLR(client_p);
             pthread_mutex_unlock(&client_mutex);
+            printf("%s\n", pnode -> pwd);
             return NULL;
         }
 
         FD_CLR(client_p ->fd, &readfds);
 
     }
-    deal_dailylog("server quit!\n");
-	fp = fopen("daily_log", "ab");
-            fwrite(dailylog.logbuf, BUFLEN, 1, fp);
-            memset(dailylog.logbuf, 0, sizeof(dailylog.logbuf));
-            dailylog.len = 0;
-            fclose(fp);
-            fp = fopen("error_log", "ab");
-            fwrite(errlog.logbuf, BUFLEN, 1, fp);
-            memset(errlog.logbuf, 0, sizeof(errlog.logbuf));
-            errlog.len = 0;
-            fclose(fp);
+	fp = fopen(logname, "ab");
+    fclose(fp);
     close(client_p -> fd);
     pthread_mutex_lock(&client_mutex);
     FD_ADDR_CLR(client_p);
@@ -652,7 +578,7 @@ void *msg_processor(void *arg){                 //处理各种功能的线程函
 
 }
 
-void *send_file_to_ser(void *arg){                                      //发送文件到客户端的子线程
+void *send_file_to_ser(void *arg){
     char buf[BUFLEN];
     int numbytes = 0;
     int i;
@@ -666,20 +592,20 @@ void *send_file_to_ser(void *arg){                                      //发送
     fd_addr * client_p;
     struct node *a = (struct node*)arg;
     client_p = a -> client_pa;
-    recv(client_p -> fd, &times, sizeof(times), MSG_WAITALL);           //发送要接受的次数
+    printf("2\n");
+    recv(client_p -> fd, &times, sizeof(times), MSG_WAITALL);
+    printf("3\n");
     for(i = 9; a -> str[i] != '\0'; i ++){
         file_name[i - 9] = a -> str[i];
     }
+    printf("2\n");
     file_name[i - 9] = '\0';
     fp = fopen(file_name, "w");
     if(fp == NULL){
         printf("open file %s wrong\n", file_name);
-        char stri[100] = "open file wrong: ";
-        strcat(stri, file_name);
-        deal_errlog(stri);
         return NULL;
     }
-    memset(buffer, 0, sizeof(buffer));                                  //打开文件后进行按段进行接收写入
+    memset(buffer, 0, sizeof(buffer));
     temp_time = times;
     while(temp_time --){
         len = recv(client_p -> fd, buffer, BUFLEN, 0);
@@ -690,7 +616,7 @@ void *send_file_to_ser(void *arg){                                      //发送
     pthread_exit(1);
 }
 
-void *get_file_from_ser(void *arg){                                     //从客户端下载文件的子线程
+void *get_file_from_ser(void *arg){
     int numbytes = 0;
     char buf[BUFLEN];
     char file_name[NAMELEN];
@@ -702,15 +628,17 @@ void *get_file_from_ser(void *arg){                                     //从客
     fd_addr * client_p;
     struct node *a = (struct node*)arg;
     client_p = a -> client_pa;
+    printf("%s\n", a -> str);
     for(i = 8; a -> str[i] != '\0'; i ++)
         file_name[i - 8] = a -> str[i];
     file_name[i - 8] = '\0';
+    printf("%s\n", file_name);
     fp = fopen(file_name, "r");
     if(fp == NULL){
         write(client_p -> fd, "the file you wanna to get is not exist!\n", BUFLEN);
         pthread_exit(NULL);
     }
-    fseek(fp, 0, SEEK_END);                                             //计算文件的大小，从而计算文件传输次数
+    fseek(fp, 0, SEEK_END);
     len = ftell(fp);
     if(len % BUFLEN){
         times = len / BUFLEN + 1;
@@ -723,7 +651,7 @@ void *get_file_from_ser(void *arg){                                     //从客
     fclose(fp);
     fp = fopen(file_name, "r");
     memset(buffer, 0, sizeof(buffer));
-    while((len = fread(buffer, sizeof(char), BUFLEN, fp)) > 0){         //按段进行读取发送
+    while((len = fread(buffer, sizeof(char), BUFLEN, fp)) > 0){
         if(send(client_p -> fd, buffer, len, 0) < 0){
             printf("Send file:%s Failed\n", file_name);
             break;
@@ -733,7 +661,7 @@ void *get_file_from_ser(void *arg){                                     //从客
     pthread_exit(NULL);
 }
 
-void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功能的函数
+void file_of_the_group(fd_addr * const client_p, struct info * pnode){
     int numbytes;
     char buf[BUFLEN];
     char tempbuf[BUFLEN];
@@ -748,22 +676,22 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
     knode = file_group;
     write(client_p -> fd, "choose a group first:\n", BUFLEN);
     if((numbytes = recv(client_p -> fd, tempbuf, BUFLEN, 0)) < 0){
-        deal_errlog("recv error!\n");
         perror("recv");
         return ;
     }
     tempbuf[--numbytes] = '\0';
     for(i = 0; pnode -> groups[i][0] != '\0'; i ++){
         if(!strcmp(pnode -> groups[i], tempbuf)){
-            write(client_p -> fd, "there are files which this group have\n", BUFLEN);       //打印现有的群文件
+            write(client_p -> fd, "there are files which this group have\n", BUFLEN);
             while(knode){
+                printf("%s\n", knode -> group_name);
+                printf("%s\n", tempbuf);
                 if(!strcmp(knode -> group_name, tempbuf)){
                     printf("%s\n", knode -> filename[0]);
                     for(i = 0; knode -> filename[i][0] != '\0'; i ++){
                         write(client_p -> fd,  knode -> filename[i], BUFLEN);
-                        write(client_p -> fd, "\t", BUFLEN);
                         if(i == 4)
-                            write(client_p -> fd, "\n", BUFLEN);
+                            printf("\n");
                     }
                     write(client_p -> fd, "\n", BUFLEN);
                     break;
@@ -773,7 +701,6 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
             write(client_p -> fd, "Usage: sendfile@filename(the file you wanna to share)\n", BUFLEN);
             write(client_p -> fd, "Usage: getfile@filename(the file you wanna to get)\n", BUFLEN);
             if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) < 0){
-                deal_errlog("recv error!\n");
                 perror("recv");
                 return;
             }
@@ -782,8 +709,9 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
                 for(i = 9; buf[i] != '\0' && buf[i] != '\n';i ++)
                     file_name[i - 9] = buf[i];
                 file_name[i - 9] = '\0';
-                strcpy(a.str, buf);                                     //处理结构体作为传参
+                strcpy(a.str, buf);
                 a.client_pa = client_p;
+                printf("1\n");
                 pthread_create(&pid, NULL, send_file_to_ser, (void*)&a);
                 pthread_join(pid, &status);
                 printf("for front %s\n", knode -> filename[0]);
@@ -792,6 +720,7 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
                 printf("for behind%s\n", knode -> filename[0]);
                 printf("%s\n", knode -> filename[1]);
                 update_group(file_group);
+                printf("haha\n");
             }
             else if(!strncmp(buf, "getfile@", 8)){
                 strcpy(a.str, buf);
@@ -799,7 +728,7 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
                 pthread_create(&pid, NULL, get_file_from_ser,(void*)&a);
                 pthread_join(pid, &status);
             }
-            else if(!strcmp(buf, "exit")){                              //当输入exit时退出
+            else if(!strcmp(buf, "exit")){
                 return ;
             }
             flag = 1;
@@ -812,7 +741,7 @@ void file_of_the_group(fd_addr * const client_p, struct info * pnode){  //群功
     }
 }
 
-void change_information(fd_addr * const client_p, struct info *pnode){   //更改个人信息函数
+void change_information(fd_addr * const client_p, struct info *pnode){
     char buf[BUFLEN];
     char choose[BUFLEN];
     int numbytes;
@@ -826,7 +755,8 @@ void change_information(fd_addr * const client_p, struct info *pnode){   //更�
         write(client_p -> fd, "             ④ exit                  \n", BUFLEN);
         numbytes = recv(client_p -> fd, choose, BUFLEN, 0);
         choose[--numbytes] = '\0';
-        if(choose[0] == '1'){                                                       //找到个人结点后修改密码
+        if(choose[0] == '1'){
+            printf("%s\n", pnode -> pwd);
             write(client_p -> fd, "input your old password:\n", BUFLEN);
             numbytes = recv(client_p -> fd, buf, BUFLEN, 0);
             buf[-- numbytes] = '\0';
@@ -837,10 +767,6 @@ void change_information(fd_addr * const client_p, struct info *pnode){   //更�
                 strcpy(pnode -> pwd, buf);
                 printf("pnode -> pwd %s\n", pnode -> pwd);
                 write(client_p -> fd, "Change successfully!\n", BUFLEN);
-                char stri[100];
-                strcpy(stri, client_p -> user_name);
-                strcat(stri , " change the password!\n");
-                deal_dailylog(stri);
             }
             else{
                 write(client_p -> fd, "old password is wrong!\n", BUFLEN);
@@ -848,38 +774,39 @@ void change_information(fd_addr * const client_p, struct info *pnode){   //更�
                 continue;
             }
             update_info(file_info);
+            printf("%s\n", pnode -> pwd);
+            /*load_info();
+            while(file_info){
+                if(!strcmp(file_info -> name, client_p -> user_name)){
+                    printf("%s\n", file_info -> pwd);
+                }
+                file_info = file_info -> next;
+            }
+            */
         }
-        else if(choose[0] == '2'){                                                  //修改年龄
+        else if(choose[0] == '2'){
             write(client_p -> fd, "input your new age!\n", BUFLEN);
             numbytes = recv(client_p -> fd, buf, BUFLEN, 0);
             buf[-- numbytes] = '\0';
             strcpy(pnode -> age, buf);
             write(client_p -> fd, "Change successfully!\n", BUFLEN);
-            char stri[100];
-            strcpy(stri, client_p -> user_name);
-            strcat(stri, " change the age!\n");
-            deal_dailylog(stri);
             update_info(file_info);
         }
-        else if(choose[0] == '3'){                                                  //修改电话号码
+        else if(choose[0] == '3'){
             write(client_p -> fd, "input your new phonenumber!\n", BUFLEN);
             numbytes = recv(client_p -> fd, buf, BUFLEN, 0);
             buf[-- numbytes] = '\0';
             strcpy(pnode -> phonenum, buf);
             write(client_p -> fd, "Change successfully!\n", BUFLEN);
-            char stri[100];
-            strcpy(stri, client_p -> user_name);
-            strcat(stri, " change the phonenumber!\n");
-            deal_dailylog(stri);
             update_info(file_info);            
         }
-        else if(choose[0] == '4'){                                                  //退出
+        else if(choose[0] == '4'){
             break;
         }
     }
 }
 
-void quit_from_group(fd_addr * const client_p, struct info* knode){                 //退出群组
+void quit_from_group(fd_addr * const client_p, struct info* knode){
     char buf[BUFLEN];
     char choose[BUFLEN];
     struct group *pnode = file_group;
@@ -892,7 +819,7 @@ void quit_from_group(fd_addr * const client_p, struct info* knode){             
     }
 
     buf[--numbytes] = '\0';
-    for(i = 0; knode -> groups[i][0] != '\0'; i ++){                                //同时删除两个链表内的信息，然后进行更新信息
+    for(i = 0; knode -> groups[i][0] != '\0'; i ++){
         if(!strcmp(knode -> groups[i], buf)){
             j = i;
             t = 1;
@@ -915,11 +842,6 @@ void quit_from_group(fd_addr * const client_p, struct info* knode){             
         strcpy(knode -> groups[j], knode -> groups[i - 1]);
         knode -> groups[i - 1][0] = '\0';
         write(client_p -> fd, "You delete the group successfully!\n", BUFLEN);
-        char stri[100];
-        strcpy(stri, client_p -> user_name);
-        strcat(stri, " quit from the group :");
-        strcat(stri, pnode -> group_name);
-        deal_dailylog(stri);
         sleep(1);
     }
     else{
@@ -929,7 +851,7 @@ void quit_from_group(fd_addr * const client_p, struct info* knode){             
     update_group(file_group);       
     update_info(file_info);
 }
-void add_group(fd_addr * const client_p, struct info * knode){                      //用户添加群组
+void add_group(fd_addr * const client_p, struct info * knode){
     char buf[BUFLEN];
     int numbytes = 0;
     char tempbuf[BUFLEN];
@@ -950,14 +872,10 @@ void add_group(fd_addr * const client_p, struct info * knode){                  
         if(!strcmp(pnode -> group_name, buf)){
             for(i = 0; pnode -> member[i][0] != '\0'; i ++);
             strcpy(pnode -> member[i], client_p -> user_name);
-            for(i = 0; knode -> groups[i][0] != '\0'; i ++);
-            strcpy(knode -> groups[i], pnode -> group_name);
+            for(i = 0; knode -> groups[i][0] != '\0'; i ++)
+                printf("%s\n", knode -> groups[i]);
+                    strcpy(knode -> groups[i], pnode -> group_name);
             write(client_p -> fd, "Add successfully!\n", BUFLEN);
-            char stri[100];
-            strcpy(stri, client_p -> user_name);
-            strcat(stri, " add group: ");
-            strcat(stri, pnode -> group_name);
-            deal_dailylog(stri);
             update_group(file_group);
             update_info(file_info);
             return ;
@@ -975,11 +893,6 @@ void add_group(fd_addr * const client_p, struct info * knode){                  
             for(i = 0; knode -> groups[i][0] != '\0'; i ++);
             strcpy(knode -> groups[i], buf);
             write(client_p -> fd, "Create group successfully!\n", BUFLEN);
-            char stri[100];
-            strcpy(stri, client_p -> user_name);
-            strcat(stri, " create the group: ");
-            strcat(stri, buf);
-            deal_dailylog(stri);
             update_group(file_info);
             update_info(file_info);
             return ;
@@ -990,7 +903,7 @@ void add_group(fd_addr * const client_p, struct info * knode){                  
 
 }
 
-void chat_with_group(fd_addr * const client_p, struct info *knode){              //群聊处理阶段
+void chat_with_group(fd_addr * const client_p, struct info *knode){
     char buf[BUFLEN];
     int numbytes;
     struct group *pnode;
@@ -1021,7 +934,7 @@ void chat_with_group(fd_addr * const client_p, struct info *knode){             
             printf("come in while(1)\n");
             FD_ZERO(&readfds);
             while(1){
-                FD_SET(client_p -> fd, &readfds);                                       //使用I/O多路复用查看是否收到信息
+                FD_SET(client_p -> fd, &readfds);
                 select((client_p -> fd) + 1, &readfds, NULL, NULL, NULL);
                 if(FD_ISSET(client_p -> fd, &readfds)){
                     memset(buf, 0, BUFLEN);
@@ -1031,7 +944,7 @@ void chat_with_group(fd_addr * const client_p, struct info *knode){             
                     }
                     buf[--numbytes] = '\0';
 
-                    if(!strcmp(buf, "exit")){
+                    if(!strcmp(buf, "quit")){
                         send_to_group("------------go out----------", client_p, pnode);
                         printf("%s Quit\n", inet_ntoa(client_p -> addr.sin_addr));
                         client_p -> room_flag = 0;
@@ -1054,23 +967,22 @@ void chat_with_group(fd_addr * const client_p, struct info *knode){             
 }
 
 
-void send_to_group(char *buf, fd_addr* const client_p, struct group* pnode){            //群聊发送信息阶段
-    int i = 0, j;                   
+void send_to_group(char *buf, fd_addr* const client_p, struct group* pnode){
+    int i = 0, j;
     char add_buf[BUFLEN] = {0};
     struct group *knode;
     strcpy(add_buf, "<<");
     strcat(add_buf, client_p -> user_name);
     strcat(add_buf, ">>\n");
-    strcat(add_buf, get_time());
     strcat(add_buf, buf);
     strcat(add_buf, "\n\n");
     
     for(i = 0; i < MAXPEOPLE; i ++){
-        if((client[i].fd !=  -1) && (client[i].fd != client_p -> fd) && (client[i].room_flag == 1)){        //对当前在线且在群聊室的人发送信息
+        if((client[i].fd !=  -1) && (client[i].fd != client_p -> fd) && (client[i].room_flag == 1)){
             for(j = 0; pnode -> member[j][0] != '\0'; j ++){
+                printf("meber have :%s\n", pnode -> member[j]);
                 if(!strcmp(pnode -> member[j], client[i].user_name)){
                     if(send(client[i].fd, add_buf, BUFLEN, 0) == -1){
-                        deal_errlog("send to group error!\n");
                         perror("sendto error");
                         perror((char*)inet_ntoa(client[i].addr.sin_addr));
                         continue;
@@ -1104,10 +1016,10 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
     struct node a;
     fd_set readfds;
     pthread_t pid;
-    memset(pathname, 0, sizeof(pathname));                                                  //对私聊的离线信息存储文件进行路径的字符串处理
+    memset(pathname, 0, sizeof(pathname));
     strcpy(pathname, client_p -> user_name);
     strcat(pathname, "/file_message");
-    fp = fopen(pathname, "rb");                                                             //判断文件的大小
+    fp = fopen(pathname, "rb");
     fseek(fp, 0, SEEK_END);
     if(ftell(fp) == 0)
         t = 1;
@@ -1116,13 +1028,13 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
         if(fread(tempbuf, BUFLEN, 1, fp) == 1){
             write(client_p -> fd, tempbuf, BUFLEN);
             write(client_p -> fd, "\n", BUFLEN);
+            //这里是输出离线的消息但是还没有加换行，再下面离线消息的时候手动加换行符！
         }
         else if(feof(fp)) {
             break;
         }
         else{
             perror("read file error");
-            deal_errlog("read file error!\n");
             return ;
         }
     }
@@ -1149,7 +1061,7 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
             if(!strcmp(tempbuf, "exit")){
                 return;
             }
-            else if(!strncmp(tempbuf, "sendfile@", 9)){                                //解析发送文件信息的字符串
+            else if(!strncmp(tempbuf, "sendfile@", 9)){
                 strcpy(a.str, tempbuf);
                 a.client_pa = client_p;
                 pthread_create(&pid, NULL, send_file, (void*)&a);
@@ -1225,9 +1137,8 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
                 }*/
             }
             else{
-                strcpy(buf, get_time());
-                strcat(buf, client_p -> user_name);
-                for(i = 0; tempbuf[i] != '@' && tempbuf[i] != '\0'; i ++){                                      //将发送的字符串处理成为 xxx tell to you: xxxxxxxx的形式
+                strcpy(buf, client_p -> user_name);
+                for(i = 0; tempbuf[i] != '@' && tempbuf[i] != '\0'; i ++){
                     send_name[i] = tempbuf[i];
                 }
                 if(tempbuf[i] == '\0'){
@@ -1258,7 +1169,10 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
                     buf[len + j] = tempbuf[pos]; 
                 }
                 buf[len + j] = '\0';
+                printf("%s\n", send_name);
+                printf("%s\n", buf);
                 for(i = 0; client[i].fd != -1; i ++){
+                    printf("%s\n", client[i].user_name);
                     if(!strcmp(client[i].user_name, send_name)){
                         write(client[i].fd, buf, BUFLEN);
                         write(client[i].fd, "\n", BUFLEN);
@@ -1266,7 +1180,7 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
                     }
                 }
                 if(client[i].fd == -1){
-                    write(client_p -> fd, "Your friend is not online, you will send a offline message!\n", BUFLEN);         //不在线发送离线消息
+                    write(client_p -> fd, "Your friend is not online, you will send a offline message!\n", BUFLEN);
                     memset(pathname, 0, sizeof(pathname));
                     strcpy(pathname, send_name);
                     strcat(pathname, "/file_message");
@@ -1276,12 +1190,13 @@ void chat_with_one(fd_addr* const client_p, struct info* pnode){
                 }
             }
         }
+        //printf("FD_ISSET guo!\n");
         FD_CLR(client_p -> fd, &readfds);
     }
 
 }
 
-int login(fd_addr* const client_p){                                 //登陆界面
+int login(fd_addr* const client_p){
     char buf[BUFLEN];
     int numbytes = 0;
     char pathname[PATHLEN];
@@ -1353,6 +1268,7 @@ int login(fd_addr* const client_p){                                 //登陆界�
 
             printf("from:%s :%s\n", inet_ntoa(client_p -> addr.sin_addr), buf);
             printf("node -> name:%s\n", pnode -> name);
+            //printf("client_p -> user_name:%s///strlen:%d\n", client_p -> user_name, strlen(client_p -> user_name));
 
             if(!strcmp(buf, pnode -> pwd)){
                 for(i = 0; i < MAXPEOPLE; i ++){
@@ -1372,8 +1288,7 @@ int login(fd_addr* const client_p){                                 //登陆界�
                     char str[100];
                     strcpy(str, client_p -> user_name);
                     strcat(str, " login success\n");
-                    deal_dailylog(str);
-                    printf("hahahahafds %s\n", dailylog.logbuf);
+                    deal_log(dailylog, str,"daily_log");
                     return 1;
                 }
             }
@@ -1387,7 +1302,6 @@ int login(fd_addr* const client_p){                                 //登陆界�
             memset(buf, 0, sizeof(buf));
             if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) == -1){
                 perror("recv in regist");
-                deal_errlog("recv in regist!\n");
                 pthread_exit(NULL);
             }
             buf[-- numbytes] = '\0';
@@ -1408,7 +1322,6 @@ int login(fd_addr* const client_p){                                 //登陆界�
                 memset(buf, 0, sizeof(buf));
                 if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) == -1){
                     perror("recv in regist");
-                    deal_errlog("recv in regist!\n");
                     pthread_exit(NULL);
                 }
                 buf[--numbytes] = '\0';
@@ -1435,6 +1348,7 @@ int login(fd_addr* const client_p){                                 //登陆界�
                     fp = fopen(pathname, "wb");
                     sleep(1);
 
+                  //printf("regist %s : %s\n", pnode -> name, pnode -> pwd);
                     write(client_p -> fd, "please input your age:\n", BUFLEN);
                     memset(buf, 0, sizeof(buf));
                     while(1){
@@ -1458,7 +1372,7 @@ int login(fd_addr* const client_p){                                 //登陆界�
                     buf[-- numbytes] = '\0';
                     strcpy(tempphonenum, buf);
                     
-                    add_in_list(pnode, tempname, temppwd, tempage, tempphonenum);               //接受各种信息后添加到用户链表新的结点
+                    add_in_list(pnode, tempname, temppwd, tempage, tempphonenum);
 
 
                 }
@@ -1470,7 +1384,7 @@ int login(fd_addr* const client_p){                                 //登陆界�
                 
         }
 
-        else if(buf[0] == '3'){                                                                 //退出
+        else if(buf[0] == '3'){
             write(client_p -> fd, "EXIT", BUFLEN);
             close(client_p -> fd);
             pthread_mutex_lock(&client_mutex);
@@ -1480,8 +1394,8 @@ int login(fd_addr* const client_p){                                 //登陆界�
         }   
     }
 }
-//原群聊代码
-/*
+
+
 void send_to_all(char *buf, fd_addr* const client_p){
     int i = 0;
     char add_buf[BUFLEN] = {0};
@@ -1538,8 +1452,8 @@ void chat_with_all(fd_addr * const client_p){
         FD_CLR(client_p -> fd, &readfds);
     }
 }
-*/
-void add_friend(fd_addr * const client_p){                                          //添加好友
+
+void add_friend(fd_addr * const client_p){
     struct info *pnode;
     pnode = file_info;
     char buf[BUFLEN];
@@ -1548,7 +1462,6 @@ void add_friend(fd_addr * const client_p){                                      
     int i = 0;
     write(client_p -> fd, "input the name you wanna to add:\n", BUFLEN);
     if((numbytes = recv(client_p -> fd, buf, BUFLEN, 0)) == -1){
-        deal_errlog("received error!\n");
         perror("recv");
         pthread_exit(NULL);
     }
@@ -1559,7 +1472,7 @@ void add_friend(fd_addr * const client_p){                                      
         sleep(1);
         return ;
     }
-    while(pnode){                                                                   //找到想添加的用户
+    while(pnode){
         if(!strcmp(pnode -> name, buf))
             break;
         pnode = pnode -> next;
@@ -1583,7 +1496,7 @@ void add_friend(fd_addr * const client_p){                                      
                 pthread_exit(NULL);
             }
             tempbuf[--numbytes] = '\0';
-            if(tempbuf[0] == 'y' || tempbuf[0] == 'Y'){                             //发送邀请，写入文件
+            if(tempbuf[0] == 'y' || tempbuf[0] == 'Y'){
                 send_invatation(client_p, buf);
                 break;
             }
@@ -1604,7 +1517,8 @@ void send_invatation(fd_addr *const client_p, const char *accname){
     char pathname[PATHLEN];
     strcpy(pathname, accname);
     strcat(pathname, "/file_invatation");
-    fp = fopen(pathname, "a+");                                         //向文件中追加内容，即好友的申请
+    printf("%s\n", pathname);
+    fp = fopen(pathname, "a+");
     if(fp == NULL){
         perror("fopen");
         return ;
@@ -1624,7 +1538,7 @@ int get_invatation(fd_addr *const client_p, struct info * pnode){
     int i = 0, j, t = 0;
     int numbytes = 0;
     strcpy(pathname, client_p -> user_name);
-    strcat(pathname, "/file_invatation");                               //先打开文件，读出已经存在的信息
+    strcat(pathname, "/file_invatation");
     fp = fopen(pathname, "rb+");
     if(fp == NULL)
         printf("open file error!\n");
@@ -1663,7 +1577,7 @@ int get_invatation(fd_addr *const client_p, struct info * pnode){
         buf[--numbytes] = '\0';
         printf("%s\n", buf);
         if(buf[0] == 'y'){
-            while(pnode -> friends[t][0] != '\0'){                                  //对两个人在链表中的结点都进行处理并更新
+            while(pnode -> friends[t][0] != '\0'){
                 t ++;
             }
             printf("%s\n", pnode -> name);
@@ -1679,11 +1593,6 @@ int get_invatation(fd_addr *const client_p, struct info * pnode){
             while(knode -> friends[t][0] != '\0')
                 t ++;
             strcpy(knode -> friends[t], client_p -> user_name);
-            char stri[100];
-            strcpy(stri, pnode -> name);
-            strcat(stri, " and ");
-            strcat(stri, knode -> name);
-            strcat(stri, " become friends!\n");
         }
         else if(strcmp("n", buf)){
             continue;
@@ -1696,7 +1605,7 @@ int get_invatation(fd_addr *const client_p, struct info * pnode){
     }
     update_info(file_info);
     fclose(fp);
-    fp = fopen(pathname, "w");   //清空文件
+    fp = fopen(pathname, "w");
     fclose(fp);
     return 1;
 }

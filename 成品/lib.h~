@@ -10,11 +10,11 @@
 #include<sys/socket.h>
 #include<sys/wait.h>
 #include<sys/stat.h>
-#define SERVPORT 5256                   //设置端口号
-#define BUFLEN 1024                     //信息发送的统一缓存大小
+#define SERVPORT 5257
+#define BUFLEN 1024
 #define NAMELEN 10
 #define MAX(a,b) (((a)>(b))?(a):(b))
-typedef struct{                         //此结构体存储登录的用户的信息，包括姓名，fd号以及套接字文件信息
+typedef struct{
 	struct sockaddr_in addr;
 	char user_name[NAMELEN];
 	int fd;
@@ -22,7 +22,7 @@ typedef struct{                         //此结构体存储登录的用户的�
 }fd_addr;
 
 
-struct node{                            //通过此结构体给线程函数传输结构体和一个字符串的信息
+struct node{
     fd_addr * client_pa;
     char str[BUFLEN];
 };

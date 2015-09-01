@@ -11,51 +11,52 @@
 #define BACKLOG 100
 #define MAXPEOPLE 100
 
-#define PWDLEN 20               
-#define SAVEMOST 1024           
-#define PATHLEN 128             
-#define MAXGROUP 256    //最多有多少个群组
-#define MAXFILE 1024    //最多有多少个文件
+#define PWDLEN 20
+#define SAVEMOST 1024
+#define PATHLEN 128
+#define MAXGROUP 256
+#define MAXFILE 1024
 #define FD_ADDR_CLR(a) ((a)->fd) = -2;\
 		(a)->addr.sin_addr.s_addr = 0;\
 		 memset((a)->user_name, 0, 10);\
 		(a)->room_flag = 0;
-		//处理退出以后的用户信息
+		
 #define DEBUG_VERSION
 
 
 
 
-struct info{                //用户信息结构体，有姓名，密码，性别年龄电话，好友，加入的群组，在内存中以链表形式维护
+struct info{
 	char name[NAMELEN];
 	char pwd[PWDLEN];
     char age[3];
     char phonenum[PWDLEN];
     char friends[MAXPEOPLE][NAMELEN];
+    char friendsnum[4];
     char groups[MAXGROUP][NAMELEN];
 	struct info* next;
 };
 
-struct group{               //群信息结构体，有群名，群成员，群文件名。在内存中以链表形式维护
+struct group{
     char group_name[NAMELEN];
     char member[MAXPEOPLE][NAMELEN];
     char filename[MAXFILE][NAMELEN];
     struct group *next;
 };
 
-struct log{                 //日志信息结构体
+struct log{
     char logbuf[BUFLEN];
     int len;
 };
 
-fd_addr client[MAXPEOPLE];  //在线的所有用户的
-struct info* file_info;     //全局的用户信息链表的头结点
-struct group* file_group;   //全局的群信息链表的头结点
-struct log errlog;          //错误日志结构体
-struct log dailylog;        //日常日志结构体
+fd_addr client[MAXPEOPLE];
+struct info* file_info;
+struct group* file_group;
+struct log errlog;
+struct log dailtlog;
 
 
-pthread_mutex_t sock_mutex = PTHREAD_MUTEX_INITIALIZER;   //各种锁
+pthread_mutex_t sock_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -81,10 +82,8 @@ void chat_with_group(fd_addr *, struct info *);
 void add_group(fd_addr *, struct info *);
 void quit_from_group(fd_addr *, struct info *);
 void change_information(fd_addr *, struct info* );
-void deal_dailylog(char *);
-void deal_errlog(char *);
+void deal_log(struct log, char *, char *);
 void file_of_the_group(fd_addr*, struct info *);
 void *get_file_from_ser(void *);
 void *send_file_to_ser(void *);
-
 #endif
